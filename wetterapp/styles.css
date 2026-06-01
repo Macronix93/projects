@@ -1,0 +1,113 @@
+* {
+    font-family: 'Jost', sans-serif;
+}
+
+body, html {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    color: rgb(245, 245, 245);
+}
+
+.bg {
+    display: flex;
+    flex-direction: column;
+    gap: 50px;
+    align-items: center;
+    justify-content: center;
+    background-image: url("background.jpg");
+    height: 100%;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+
+.container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#content {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: self-start;
+    justify-content: center;
+    min-height: 420px;
+    width: 350px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 16px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    text-shadow: 2px 2px rgb(41, 43, 46);
+    padding: 20px;
+}
+
+#citydata {
+    text-align: center;
+}
+
+#searchbar {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 350px;
+}
+
+#cityname {
+    font-weight: bold;
+    font-size: 24px;
+}
+
+#title {
+    font-size: 48px;
+    text-shadow: 2px 2px rgb(41, 43, 46);
+}
+
+#date {
+    font-size: 16px;
+}
+
+#temp {
+    font-size: 84px;
+    text-shadow: 5px 5px rgb(41, 43, 46);
+}
+
+#minmaxtemp {
+    font-size: 16px;
+}
+
+#conditions {
+    font-size: 24px;
+}
+
+#city {
+    color: rgb(220, 220, 220);
+    font-size: 18px;
+    border-color: transparent;
+    border-radius: 5px;
+    background: rgba(50, 50, 50, 0.5);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 12px 12px;
+    height: 15px;
+    margin-right: 15px;
+}
+
+#city:focus {
+    border-color: transparent;
+}
+
+#refreshbutton {
+    width: 30px;
+    height: 30px;
+    background-image: url("refresh.png");
+    background-size: cover;
+    background-position: center;
+    background-color: transparent;
+    border: none;
+}

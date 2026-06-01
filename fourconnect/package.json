@@ -1,0 +1,22 @@
+{
+  "name": "fourconnect",
+  "version": "1.0.0",
+  "description": "Four Connect Multiplayer",
+  "main": "server.js",
+  "scripts": {
+    "start": "nodemon server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "5.0.0",
+    "mongoose": "^9.5.0",
+    "node-cron": "^4.2.1",
+    "nodemon": "^3.1.0",
+    "socket.io": "^4.7.5",
+    "socket.io-client": "^4.7.5"
+  }
+}

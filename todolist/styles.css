@@ -1,0 +1,125 @@
+* {
+    font-family: 'Jost', sans-serif;
+}
+
+body, html {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: rgb(30, 30, 30);
+    color: rgb(220, 220, 220);
+}
+
+#wrapper {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+#itemcontainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    justify-content: center;
+    background-color: rgba(56, 65, 82, 0.5);
+    border-radius: 20px;
+    padding: 10px;
+    width: 680px;
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+    box-sizing: border-box;
+    width: 100%;
+    background-color: rgb(17, 24, 40);
+    border-radius: 20px;
+}
+
+.item:first-child {
+    margin-top: 40px;
+}
+
+.itemtext {
+    width: 200px;
+    font-size: 20px;
+    margin-left: 10px;
+    overflow: hidden;
+    word-wrap: break-word;
+}
+
+.vline {
+    margin-right: 20px;
+    border-left: 3px solid darkgoldenrod;
+}
+
+#additem {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+#inputtext {
+    color: rgb(200, 200, 200);
+    font-size: 22px;
+    border: none;
+    border-radius: 20px;
+    background-color: rgb(32, 41, 56);
+    padding: 16px 16px;
+    height: 15px;
+    margin-right: 15px;
+    width: 100%;
+}
+
+input:focus {
+    outline: none;
+}
+
+input:focus::placeholder {
+    color: transparent;
+}
+
+#title {
+    font-size: 50px;
+    text-shadow: 5px 5px rgb(0, 0, 0);
+}
+
+button {
+    cursor: pointer;
+}
+
+.itemoptions {
+    width: 140px;
+    display: flex;
+    justify-content: space-between;
+    margin-inline: 4px;
+}
+
+.center-icons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+    background: none;
+    border: none;
+}
+
+#errormsg {
+    display: none;
+    height: 10px;
+    padding-bottom: 10px;
+    color: lightcoral;
+    text-shadow: 2px 2px rgb(0, 0, 0);
+}
+
+@media only screen and (max-width: 920px) {
+}

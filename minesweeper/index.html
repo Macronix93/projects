@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"/>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+            href="https://fonts.googleapis.com/css2?family=Londrina+Outline&family=Londrina+Solid&family=Roboto&family=Signika+Negative:wght@500&display=swap"
+            rel="stylesheet">
+    <title>Minesweeper</title>
+</head>
+
+<body>
+<div id="container">
+    <div id="stats-box">
+        <div class="statsitem"><span id="minesleft"></span></div>
+        <div class="statsitem">
+            <button id="reset" type="button"></button>
+        </div>
+        <div class="statsitem"><span id="timer"></span></div>
+    </div>
+    <div id="size-box">
+        <span class="sizeitem">
+            <input type="radio" id="beginner" name="setting" value="beginner"><label for="beginner">8x8</label>
+        </span>
+        <span class="sizeitem">
+            <input type="radio" id="intermediate" name="setting" value="intermediate"><label for="intermediate">16x16</label>
+        </span>
+        <span class="sizeitem">
+            <input type="radio" id="expert" name="setting" value="expert"><label for="expert">30x16</label>
+        </span>
+    </div>
+    <span id="gameovermessage"></span>
+    <div id="table-container"></div>
+</div>
+
+<script src="minesweeper.js"></script>
+
+</body>
+
+</html>

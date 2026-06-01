@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+            href="https://fonts.googleapis.com/css2?family=Londrina+Outline&family=Londrina+Solid&family=Roboto&family=Signika+Negative:wght@500&display=swap"
+            rel="stylesheet">
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO" crossorigin="anonymous"></script>
+    <title>Four Connect - Multiplayer</title>
+</head>
+<body>
+
+<div id="flex-item">
+    <div class="sidebar">
+		<form id="form">
+			<h3 id="profile-heading" style="margin-bottom: 10px;">Profile</h3>
+			<div class="name-section">
+				<input type="text" id="name-input" placeholder="Your name" maxlength="25">
+				<button type="button" id="set-name">Set</button>
+                <button type="button" id="open-auth-btn">Login</button>
+            </div>
+			
+			<div class="button-group">
+				<button type="button" id="create-lobby">Create Lobby</button>
+				<button type="button" id="leave-lobby" style="display:none;">Leave</button>
+			</div>
+		</form>
+
+		<div id="lobby-section">
+			<h3>Lobbies</h3>
+			<div id="lobby-container"></div>
+		</div>
+
+		<div id="player-section">
+			<h3>Players online</h3>
+			<div id="player-container"></div>
+		</div>
+
+        <h3>Chat</h3>
+        <div id="chat-container"></div>
+        
+        <form id="chat-form">
+            <input type="text" id="chat-message-input" placeholder="Message..." style="flex-grow: 1;">
+            <button type="button" id="send-message">Send</button>
+        </form>
+    </div>
+</div>
+
+<div id="lobby-dialog" class="custom-modal">
+    <div class="modal-content">
+        <h3 style="margin-bottom: 20px;">Lobby Settings</h3>
+        <p style="text-align: left; margin-bottom: 8px; color: #94a3b8; font-size: 0.85rem; text-transform: uppercase;">Lobby Size</p>
+        <div class="segmented-control" id="size-selector">
+            <button type="button" class="segment-btn active" data-value="2">2 Players</button>
+            <button type="button" class="segment-btn" data-value="3">3 Players</button>
+            <button type="button" class="segment-btn" data-value="4">4 Players</button>
+        </div>
+        <p style="text-align: left; margin-top: 20px; margin-bottom: 8px; color: #94a3b8; font-size: 0.85rem; text-transform: uppercase;">Opponents</p>
+        <div class="segmented-control" id="bot-selector">
+            <button type="button" class="segment-btn active" data-bot="0">No Bots</button>
+            <button type="button" class="segment-btn" data-bot="1">1 Bot</button>
+            <button type="button" class="segment-btn" data-bot="2">2 Bots</button>
+            <button type="button" class="segment-btn" data-bot="3">3 Bots</button>
+        </div>
+        <div style="margin-top: 20px; display: flex; flex-direction: column; width: 100%;">
+            <button type="button" id="confirm-create" class="confirm-btn" style="flex: 1;">Create Lobby</button>
+            <button type="button" id="close-dialog" class="cancel-btn" style="flex: 1;">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<div id="auth-dialog" class="custom-modal">
+    <div class="modal-content">
+        <h3 id="auth-title" style="margin-bottom: 20px;">Account Login</h3>
+        <div style="display: flex; flex-direction: column;">
+            <input type="text" id="auth-username" placeholder="Username"
+                   style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #334155; background: #1e293b; color: white;">
+
+            <input type="password" id="auth-password" placeholder="Password"
+                   style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #334155; background: #1e293b; color: white;">
+        </div>
+        <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
+            <button type="button" id="auth-submit-btn" class="confirm-btn">Login</button>
+            <button type="button" id="auth-switch-btn" style="background: transparent; border: none; color: #94a3b8; cursor: pointer; text-decoration: underline; font-size: 0.9rem;">
+                No account? Register here
+            </button>
+            <button type="button" id="close-auth" class="cancel-btn">Cancel</button>
+        </div>
+    </div>
+</div>
+<div id="modal-overlay" class="modal-overlay"></div>
+
+<!-- Popup -->
+<div id="popup" class="popup">
+    <div class="popup-content">
+        <p id="popup-content"></p>
+    </div>
+</div>
+
+<div id="stats-popup" class="stats-tooltip" style="position: fixed; display: none; z-index: 9999999;"></div>
+
+<script src="fourconnect.js" type="text/javascript"></script>
+<script>
+    // Close the popup when clicking outside of it
+    window.onclick = function (event) {
+        const popup = document.getElementById("popup");
+        if (event.target === popup) {
+            popup.style.display = "none";
+        }
+    }
+</script>
+
+</body>
+</html>
