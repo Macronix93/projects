@@ -64,6 +64,7 @@ function addToDo(lsUnique, lsItemText) {
 
         if (!lsUnique) {
             unique += getUniqueId();
+
             localStorage.setItem(unique + "_done", "false");
             localStorage.setItem(unique, inputText);
         } else {
@@ -71,10 +72,14 @@ function addToDo(lsUnique, lsItemText) {
         }
 
         const isDone = localStorage.getItem(unique + "_done");
-        if (isDone && isDone.includes("true")) {
+        if (isDone === "true") {
             itemText.style.textDecoration = "line-through";
-            itemText.style.color = "rgb(170, 170, 170)"
+            itemText.style.color = "rgb(170, 170, 170)";
             newItem.style.backgroundColor = "rgb(53, 104, 45)";
+        } else {
+            itemText.style.textDecoration = "none";
+            itemText.style.color = "rgb(220, 220, 220)";
+            newItem.style.backgroundColor = "rgb(17, 24, 40)";
         }
 
         newItem.setAttribute("class", "item");
@@ -83,11 +88,13 @@ function addToDo(lsUnique, lsItemText) {
         separator.setAttribute("class", "vline");
         itemOptions.setAttribute("class", "itemoptions");
 
+        const isDoneInitial = localStorage.getItem(unique + "_done") === "true";
         let doneIcon = document.createElement("img");
-        doneIcon.src = ICON_PATH + "icon_done.png";
+        doneIcon.src = isDoneInitial ? ICON_PATH + "icon_undo.png" : ICON_PATH + "icon_done.png";
+
         doneButton.appendChild(doneIcon);
         doneButton.addEventListener("click", () => {
-            setDoneToDo(itemText, newItem, unique);
+            toggleDoneToDo(itemText, newItem, unique, doneIcon);
         });
         doneButton.setAttribute("class", "center-icons");
 
@@ -95,7 +102,7 @@ function addToDo(lsUnique, lsItemText) {
         editIcon.src = ICON_PATH + "icon_edit.png";
         editButton.appendChild(editIcon);
         editButton.addEventListener("click", () => {
-            editToDo(itemText, newItem, unique, editErrorMsg);
+            editToDo(itemText, newItem, unique, editErrorMsg, doneIcon);
         });
         editButton.setAttribute("class", "center-icons");
 
@@ -127,7 +134,7 @@ function removeToDo(id, unique) {
     localStorage.removeItem(unique);
 }
 
-function editToDo(id, item, unique, errorMsg) {
+function editToDo(id, item, unique, errorMsg, iconElement) {
     editErrorMsg = "";
     const newText = prompt(errorMsg + "Choose a new text for the ToDo element:\n", id.innerText);
 
@@ -144,11 +151,14 @@ function editToDo(id, item, unique, errorMsg) {
     }
 
     if (editErrorMsg) {
-        editToDo(id, item, unique, editErrorMsg);
+        editToDo(id, item, unique, editErrorMsg, iconElement);
     } else {
-        item.style = "";
-        id.style = "";
+        // Reset styles and icon
+        item.style.backgroundColor = "rgb(17, 24, 40)";
+        id.style.textDecoration = "none";
+        id.style.color = "rgb(220, 220, 220)";
         id.innerText = newText;
+        iconElement.src = ICON_PATH + "icon_done.png";
 
         // Update local storage value
         localStorage.setItem(unique + "_done", "false");
@@ -156,13 +166,24 @@ function editToDo(id, item, unique, errorMsg) {
     }
 }
 
-function setDoneToDo(id, item, unique) {
-    id.style.textDecoration = "line-through";
-    id.style.color = "rgb(170, 170, 170)"
-    item.style.backgroundColor = "rgb(53, 104, 45)";
+function toggleDoneToDo(itemText, itemContainer, unique, iconElement) {
+    const isDone = localStorage.getItem(unique + "_done") === "true";
 
-    // Save style for done items
-    localStorage.setItem(unique + "_done", "true");
+    if (isDone) {
+        itemText.style.textDecoration = "none";
+        itemText.style.color = "rgb(220, 220, 220)";
+        itemContainer.style.backgroundColor = "rgb(17, 24, 40)";
+
+        iconElement.src = ICON_PATH + "icon_done.png";
+        localStorage.setItem(unique + "_done", "false");
+    } else {
+        itemText.style.textDecoration = "line-through";
+        itemText.style.color = "rgb(170, 170, 170)";
+        itemContainer.style.backgroundColor = "rgb(53, 104, 45)";
+
+        iconElement.src = ICON_PATH + "icon_undo.png";
+        localStorage.setItem(unique + "_done", "true");
+    }
 }
 
 function getUniqueId() {
