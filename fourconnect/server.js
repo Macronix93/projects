@@ -96,6 +96,8 @@ const MAX_HISTORY_LENGTH = 30;
 const MAX_CHAT_SPAM_TIME = 750;
 let lastMessageTime = {};
 const playerSymbols = ["●", "○", "▲", "■"];
+const MAX_LOBBIES = 50;
+const loginAttempts = {};
 
 // Helper functions
 function getPlayerCount(lobby) {
@@ -213,6 +215,7 @@ function handlePlayerExit(socket, sessionIdToRemove) {
 
                 if (isWaitingMode) {
                     lobby.gameOver = false;
+
                     stopTimer(lobby);
                 }
 
@@ -224,7 +227,9 @@ function handlePlayerExit(socket, sessionIdToRemove) {
                     lobby.lastMove = null;
                     lobby.winningLine = [];
                     lobby.currentPlayerIndex = 0;
+
                     stopTimer(lobby);
+
                     console.log(`Lobby ${lobby.roomID} reset because a player left after game over.`);
                 }
             }
@@ -233,8 +238,9 @@ function handlePlayerExit(socket, sessionIdToRemove) {
 
             if (humanPlayers.length === 0) {
                 stopTimer(lobby);
-                io.to(lobby.roomID).emit("lobby-closed", "The lobby was closed because all human players left!");
                 lobbies.splice(i, 1);
+
+                io.to(lobby.roomID).emit("lobby-closed", "The lobby was closed because all human players left!");
             } else {
                 if (lobby.hostID_Session === sessionIdToRemove) {
                     const nextHuman = humanPlayers[0];
@@ -242,6 +248,7 @@ function handlePlayerExit(socket, sessionIdToRemove) {
                     lobby.hostID_Session = nextHuman.sessionId;
                     lobby.lobbyName = "Lobby of " + nextHuman.name;
                 }
+
                 io.to(lobby.roomID).emit("update-lobby-game-state", lobby);
             }
         }
@@ -509,16 +516,25 @@ io.on("connection", socket => {
 
     socket.on("register", async (data) => {
         try {
+            if (typeof data.username !== "string" || typeof data.password !== "string") {
+                return socket.emit("auth-error", "Invalid input type.");
+            }
+
             const { username, password } = data;
             const trimmedName = username.trim();
             const lower = trimmedName.toLowerCase();
+
             if (reservedNames.includes(lower)) return socket.emit("auth-error", "This username is not allowed.");
-            const existingUser = await User.findOne({ username: { $regex: new RegExp("^" + trimmedName + "$", "i") } });
+
+            const existingUser = await User.findOne({ username: trimmedName }).collation({ locale: "de", strength: 2 })
+
             if (existingUser) return socket.emit("auth-error", "Username already exists!");
+
             const nameOnline = players.some(p =>
                 p.name.toLowerCase() === trimmedName.toLowerCase() &&
                 p.id !== socket.id
             );
+
             if (nameOnline) return socket.emit("auth-error", "This name is currently in use by a Guest!");
             if (socket.rooms.size !== 1) return socket.emit("auth-error", "You can't change your name while in a lobby!");
             if (trimmedName.length > 25 || trimmedName.length < 3) return socket.emit("auth-error", "Name is too short or too long!");
@@ -552,14 +568,36 @@ io.on("connection", socket => {
 
     socket.on("login", async (data) => {
         try {
+            const ip = socket.handshake.address;
+            const now = Date.now();
+
+            if (loginAttempts[ip] && loginAttempts[ip].count > 5 && now - loginAttempts[ip].lastAttempt < 60000) {
+                return socket.emit("auth-error", "Too many attempts. Try again in a minute.");
+            }
+
+            const username = typeof data.username === "string" ? data.username : "";
+            const password = typeof data.password === "string" ? data.password : "";
+
+            if (!username || !password) {
+                return socket.emit("auth-error", "Invalid input.");
+            }
+
             if (socket.userId) {
                 return socket.emit("auth-error", "Already logged in.");
             }
 
-            const user = await User.findOne({ username: data.username });
-            if (!user || !(await bcrypt.compare(data.password, user.password))) {
+            const user = await User.findOne({ username: username });
+            if (!user || !(await bcrypt.compare(password, user.password))) {
+                if (!loginAttempts[ip]) {
+                    loginAttempts[ip] = { count: 0, lastAttempt: now };
+                }
+                loginAttempts[ip].count++;
+                loginAttempts[ip].lastAttempt = now;
+
                 return socket.emit("auth-error", "Login failed.");
             }
+
+            delete loginAttempts[ip];
 
             const alreadyLoggedIn = players.some(p => p.userId === user._id.toString());
             if (alreadyLoggedIn) {
@@ -596,6 +634,10 @@ io.on("connection", socket => {
 
     socket.on("auto-login", async (token, sessionId) => {
         try {
+            if (typeof token !== "string") {
+                return socket.emit("auth-error", "Invalid token format.");
+            }
+
             const user = await User.findOne({ authToken: token });
             if (!user) return socket.emit("auth-error", "Session expired.");
 
@@ -781,9 +823,14 @@ io.on("connection", socket => {
         io.emit("receive-chat-message", chatData.message, chatData.playerName, chatData.playerID, chatData.time, chatData.fullDate, chatData.color);
     });
 
-    socket.on("update-player-name-in-list", async (newName, playerID) => {
+    socket.on("update-player-name-in-list", async (newName) => {
+        if (typeof newName !== "string") return;
+
 		const trimmedName = newName.trim();
         const lower = trimmedName.toLowerCase();
+
+        const player = players.find(p => p.id === socket.id);
+        if (!player) return;
 
         if (reservedNames.includes(lower)) {
             return socket.emit("auth-error", "This username is not allowed.");
@@ -804,56 +851,63 @@ io.on("connection", socket => {
             return;
         }
 
-        const isReserved = await User.findOne({ username: { $regex: new RegExp("^" + trimmedName + "$", "i") } });
+        const isReserved = await User.findOne({ username: trimmedName }).collation({ locale: "de", strength: 2 });
         if (isReserved) {
-            return socket.emit("lobby-error", "This name is already registered on the Server!");
+            if (!player.userId || isReserved._id.toString() !== player.userId) {
+                return socket.emit("lobby-error", "This name is already registered!");
+            }
         }
 
-		const nameExists = players.some(player => 
-			player.name.toLowerCase() === trimmedName.toLowerCase() && player.id !== playerID
-		);
-
-		if (nameExists) {
-			socket.emit("lobby-error", "This name is already taken!");
-			return;
-		}
-
-        // Spieler in der Liste finden
-        const player = players.find(p => p.id === playerID);
-        if (!player) return;
+        const nameTakenOnline = players.some(p => p.name.toLowerCase() === lower && p.id !== socket.id);
+        if (nameTakenOnline) {
+            return socket.emit("lobby-error", "This name is currently taken by another player!");
+        }
 
         const oldName = player.name;
 
-        // FALL 1: Registrierter User -> DB Update
-        if (!player.isGuest) {
+        if (!player.isGuest && player.userId) {
             try {
-                await User.findOneAndUpdate({ username: oldName }, { username: trimmedName }, {});
-                console.log(`DB Update: ${oldName} renamed to ${trimmedName}`);
+                await User.findByIdAndUpdate(player.userId, { username: trimmedName });
+
+                console.log(`DB Update: User ID ${player.userId} renamed from ${oldName} to ${trimmedName}`);
             } catch (err) {
                 return socket.emit("lobby-error", "Database error during rename.");
             }
         }
 
-        // FALL 2: Für alle (Gast & User) -> Liste im RAM updaten
         player.name = trimmedName;
 
         emitUniquePlayerList();
     });
 
-    socket.on("make-move", (playerID, col, roomID) => {
+    socket.on("make-move", (playerID, colInput, roomID) => {
         const lobby = lobbies.find(l => l.roomID === roomID);
+
         if (lobby && !lobby.gameOver && getPlayerCount(lobby) === lobby.maxPlayers) {
             const activePlayer = lobby.players[lobby.currentPlayerIndex];
-            if (activePlayer.id !== playerID) {
-                socket.emit("lobby-error", "It's not your turn!");
-                return;
+
+            if (!activePlayer || activePlayer.id !== socket.id) {
+                return socket.emit("lobby-error", "It's not your turn!");
             }
+
+            const col = parseInt(colInput);
+
+            if (isNaN(col) || col < 0 || col >= lobby.board[0].length) {
+                return socket.emit("lobby-error", "Invalid move: Column out of bounds.");
+            }
+
+            if (getPlayerCount(lobby) !== lobby.maxPlayers) {
+                return socket.emit("lobby-error", "Game has not started yet.");
+            }
+
+            let moveMade = false;
 
             for (let row = lobby.board.length - 1; row >= 0; row--) {
                 if (lobby.board[row][col] === "") {
                     const currentSymbol = playerSymbols[lobby.currentPlayerIndex];
                     lobby.board[row][col] = currentSymbol;
                     lobby.lastMove = { r: row, c: col };
+                    moveMade = true;
 
                     if (checkForWin(lobby, currentSymbol)) {
                         stopTimer(lobby);
@@ -873,11 +927,19 @@ io.on("connection", socket => {
                     break;
                 }
             }
+
+            if (!moveMade) {
+                socket.emit("lobby-error", "This column is already full!");
+            }
         }
     });
 
-    socket.on("create-lobby", (maxPlayersInput, playerID, fillWithBots, botCount) => {
-        const player = players.find(p => p.id === playerID);
+    socket.on("create-lobby", (maxPlayersInput, fillWithBots, botCount) => {
+        if (lobbies.length >= MAX_LOBBIES) {
+            return socket.emit("lobby-error", "Server is full, please try again later.");
+        }
+
+        const player = players.find(p => p.id === socket.id);
         if (!player) return;
 
         const alreadyInLobby = lobbies.find(l => l.players.some(p => p && p.sessionId === player.sessionId && !p.isBot));
@@ -887,16 +949,20 @@ io.on("connection", socket => {
         }
 
         const maxPlayers = parseInt(maxPlayersInput);
+        if (![2, 3, 4].includes(maxPlayers)) {
+            return socket.emit("lobby-error", "Invalid player count. Only 2, 3 or 4 players allowed.");
+        }
+
         let rows = 6; let cols = 7;
         if (maxPlayers === 3) { rows = 7; cols = 9; }
         if (maxPlayers === 4) { rows = 8; cols = 10; }
 
-        const sId = player ? player.sessionId : null;
+        const sId = player.sessionId;
         const lobbyColors = getUniqueColors(maxPlayers);
         const roomID = "room-" + crypto.randomUUID();
 
         const slots = new Array(maxPlayers).fill(null);
-        slots[0] = { name: player.name, id: playerID, sessionId: sId, isBot: false };
+        slots[0] = { name: player.name, id: socket.id, sessionId: sId, isBot: false };
 
         let botsToAdd;
         if (fillWithBots) {
@@ -920,7 +986,7 @@ io.on("connection", socket => {
             lobbyName: `Lobby of ${player.name}`,
             maxPlayers: maxPlayers,
             board: Array.from({length: rows}, () => Array(cols).fill("")),
-            hostID: playerID,
+            hostID: socket.id,
             hostID_Session: sId,
             currentPlayerIndex: 0,
             gameOver: false,
@@ -949,17 +1015,19 @@ io.on("connection", socket => {
         io.in(roomID).emit("update-lobby-game-state", newLobby);
     });
 
-    socket.on("join-lobby", (playerName, playerID, roomID) => {
+    socket.on("join-lobby", (roomID) => {
         const lobby = lobbies.find(l => l.roomID === roomID);
-        if (!lobby) return;
+        if (!lobby) return socket.emit("lobby-error", "Lobby not found.");
 
-        const player = players.find(p => p.id === playerID);
+        const player = players.find(p => p.id === socket.id);
+        if (!player) return;
+
         const sId = player.sessionId;
         const existingPlayerIndex = lobby.players.findIndex(p => p && p.sessionId === sId);
 
         if (existingPlayerIndex !== -1) {
             lobby.players[existingPlayerIndex].isBot = false;
-            lobby.players[existingPlayerIndex].id = playerID;
+            lobby.players[existingPlayerIndex].id = socket.id;
             lobby.players[existingPlayerIndex].name = player.name;
 
             socket.join(roomID);
@@ -985,7 +1053,7 @@ io.on("connection", socket => {
             if (freeSlotIndex !== -1) {
                 lobby.players[freeSlotIndex] = {
                     name: player.name,
-                    id: playerID,
+                    id: socket.id,
                     sessionId: sId
                 };
             }
@@ -1034,8 +1102,6 @@ io.on("connection", socket => {
             lobby.timeLeft = 30;
             lobby.currentPlayerIndex = Math.floor(Math.random() * lobby.maxPlayers);
 
-            io.to(roomID).emit("update-lobby-game-state", lobby);
-
             const activePlayer = lobby.players[lobby.currentPlayerIndex];
             if (activePlayer && activePlayer.isBot) {
                 stopTimer(lobby);
@@ -1044,6 +1110,7 @@ io.on("connection", socket => {
                 startTimer(lobby);
             }
 
+            io.to(roomID).emit("update-lobby-game-state", lobby);
             io.emit("update-lobby-list", lobbies);
         } else if (socket.id !== lobby.hostID) {
             socket.emit("lobby-error", "Only the host can restart the game!");

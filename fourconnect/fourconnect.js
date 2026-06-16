@@ -436,14 +436,14 @@ authPasswordInput.addEventListener("keydown", handleEnter);
 
 form.addEventListener("submit", e => {
     e.preventDefault();
-    sendUpdatePlayerNameEvent(nameInput.value, socket.id);
+    sendUpdatePlayerNameEvent(nameInput.value);
 })
 
 setNameButton.addEventListener("click", e => {
     e.preventDefault();
     const newName = nameInput.value.trim();
 
-    sendUpdatePlayerNameEvent(newName, socket.id);
+    sendUpdatePlayerNameEvent(newName);
 
     if (!isLoggedIn) {
         localStorage.setItem("savedPlayerName", newName);
@@ -462,7 +462,7 @@ lobbyDialog.querySelectorAll(".choice-btn").forEach(button => {
         const fillWithBots = document.getElementById("fill-with-bots").checked;
         const botCount = parseInt(document.getElementById("bot-count").value) || 0;
 
-        socket.emit("create-lobby", choice, socket.id, fillWithBots, botCount);
+        socket.emit("create-lobby", choice, fillWithBots, botCount);
         lobbyDialog.classList.remove("active");
         document.getElementById("modal-overlay").classList.remove("active");
     });
@@ -470,7 +470,7 @@ lobbyDialog.querySelectorAll(".choice-btn").forEach(button => {
 
 // Confirm Button
 document.getElementById('confirm-create').addEventListener('click', () => {
-    socket.emit("create-lobby", selectedSize, socket.id, false, selectedBots);
+    socket.emit("create-lobby", selectedSize, false, selectedBots);
     lobbyDialog.classList.remove("active");
     document.getElementById("modal-overlay").classList.remove("active");
 });
@@ -536,8 +536,8 @@ document.addEventListener("click", () => {
     document.querySelectorAll('.player-entry').forEach(el => el.classList.remove('show-stats'));
 });
 
-function sendUpdatePlayerNameEvent(newName, playerID) {
-    socket.emit("update-player-name-in-list", newName, playerID);
+function sendUpdatePlayerNameEvent(newName) {
+    socket.emit("update-player-name-in-list", newName);
 }
 
 function triggerStatsPopup(player, element, show) {
@@ -603,35 +603,35 @@ function triggerStatsPopup(player, element, show) {
 
 function appendMessage(message, playerName, playerID, timestamp, fullDate, color = "#FFFFFF") {
     const messageBubble = document.createElement("div");
+    messageBubble.classList.add("chat-bubble");
     const isMe = (socket.id === playerID) || (playerName === currentName);
-    const nameStyle = `
-        display: inline-block;
-        max-width: 160px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        vertical-align: bottom;
-        font-weight: bold;
-        color: ${color};
-    `;
+    const chatMeta = document.createElement("div");
+    chatMeta.classList.add("chat-meta");
 
-    const nameSpan = `<span style="${nameStyle}">${playerName}</span>:`;
-    const highlightName = isMe ? `<b>${nameSpan}</b>` : nameSpan;
-
-    const timeSpan = timestamp ? `<span class="chat-timestamp" data-tooltip="${fullDate}">${timestamp}</span>` : "";
-    const emptyMsg = document.getElementById("chat-empty-msg");
-    if (emptyMsg) {
-        chatMessageContainer.innerHTML = "";
+    if (timestamp) {
+        const timeSpan = document.createElement("span");
+        timeSpan.classList.add("chat-timestamp");
+        timeSpan.setAttribute("data-tooltip", fullDate);
+        timeSpan.textContent = timestamp;
+        chatMeta.appendChild(timeSpan);
     }
 
-    messageBubble.classList.add("chat-bubble");
-    messageBubble.innerHTML = `
-        <div class="chat-meta">
-            ${timeSpan}
-            <span class="chat-name">${highlightName}</span>
-        </div>
-        <div class="chat-text">${message}</div>
-    `;
+    const nameSpan = document.createElement("span");
+    nameSpan.classList.add("chat-name");
+    nameSpan.style.color = color;
+    if (isMe) nameSpan.style.fontWeight = "bold";
+    nameSpan.textContent = " " + playerName + ": ";
+    chatMeta.appendChild(nameSpan);
+
+    const chatText = document.createElement("div");
+    chatText.classList.add("chat-text");
+    chatText.textContent = message;
+
+    messageBubble.appendChild(chatMeta);
+    messageBubble.appendChild(chatText);
+
+    const emptyMsg = document.getElementById("chat-empty-msg");
+    if (emptyMsg) chatMessageContainer.innerHTML = "";
 
     chatMessageContainer.appendChild(messageBubble);
 
@@ -777,7 +777,7 @@ function updateLobbyList(displayName, roomID, playerCount, maxPlayers) {
     button.appendChild(countSpan);
 
     button.addEventListener("click", () => {
-        socket.emit("join-lobby", nameInput.value, socket.id, roomID);
+        socket.emit("join-lobby", roomID);
     });
 
     lobbyContainer.appendChild(button);
