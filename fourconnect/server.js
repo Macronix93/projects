@@ -118,15 +118,23 @@ function emitUniquePlayerList() {
     io.emit("update-player-list", uniquePlayers);
 }
 
-function getUniqueColors(count) {
-    let poolCopy = [...colorPool];
-    let selected = [];
+function attemptColorSwap(lobby, playerIndex, preferredColor) {
+    if (!preferredColor) return;
 
-    for (let i = 0; i < count; i++) {
-        const randomIndex = Math.floor(Math.random() * poolCopy.length);
-        selected.push(poolCopy.splice(randomIndex, 1)[0]);
+    const colorPos = lobby.playerColors.indexOf(preferredColor);
+
+    if (colorPos !== -1 && colorPos !== playerIndex) {
+        const otherOwner = lobby.players[colorPos];
+
+        if (!otherOwner || otherOwner.isBot) {
+            const temp = lobby.playerColors[playerIndex];
+
+            lobby.playerColors[playerIndex] = lobby.playerColors[colorPos];
+            lobby.playerColors[colorPos] = temp;
+
+            console.log(`Color swap in Lobby ${lobby.roomID} for ${lobby.players[playerIndex].name}`);
+        }
     }
-    return selected;
 }
 
 async function updatePlayerStats(lobby) {
@@ -135,12 +143,13 @@ async function updatePlayerStats(lobby) {
 
     const modeKey = `mode${lobby.maxPlayers}p`;
     const isDraw = (lobby.currentPlayerIndex === -1);
+    const winningIndexAtEnd = lobby.currentPlayerIndex;
 
     for (let index = 0; index < lobby.players.length; index++) {
         const playerInLobby = lobby.players[index];
         if (!playerInLobby) continue;
 
-        const isWinner = (index === lobby.currentPlayerIndex);
+        const isWinner = (index === winningIndexAtEnd);
         const isLoser = (!isWinner && !isDraw);
 
         const serverPlayer = players.find(p => p.sessionId === playerInLobby.sessionId);
@@ -160,31 +169,31 @@ async function updatePlayerStats(lobby) {
             }
 
             playerInLobby.stats = JSON.parse(JSON.stringify(serverPlayer.stats));
-        }
 
-        if (!playerInLobby.isGuest) {
-            const update = {};
-            update[`stats.total.games`] = 1;
-            update[`stats.${modeKey}.games`] = 1;
+            if (!serverPlayer.isGuest) {
+                const update = {};
+                update[`stats.total.games`] = 1;
+                update[`stats.${modeKey}.games`] = 1;
 
-            if (isWinner) {
-                update[`stats.total.wins`] = 1;
-                update[`stats.${modeKey}.wins`] = 1;
-            } else if (isDraw) {
-                update[`stats.total.ties`] = 1;
-                update[`stats.${modeKey}.ties`] = 1;
-            } else if (isLoser) {
-                update[`stats.total.loses`] = 1;
-                update[`stats.${modeKey}.loses`] = 1;
-            }
+                if (isWinner) {
+                    update[`stats.total.wins`] = 1;
+                    update[`stats.${modeKey}.wins`] = 1;
+                } else if (isDraw) {
+                    update[`stats.total.ties`] = 1;
+                    update[`stats.${modeKey}.ties`] = 1;
+                } else if (isLoser) {
+                    update[`stats.total.loses`] = 1;
+                    update[`stats.${modeKey}.loses`] = 1;
+                }
 
-            try {
-                await User.findOneAndUpdate(
-                    { username: playerInLobby.name },
-                    { $inc: update }
-                );
-            } catch (err) {
-                console.error("Error while updatedin stats in db:", err);
+                try {
+                    await User.findOneAndUpdate(
+                        {username: playerInLobby.name},
+                        {$inc: update}
+                    );
+                } catch (err) {
+                    console.error("Error while updating stats in db:", err);
+                }
             }
         }
     }
@@ -276,7 +285,6 @@ function executeBotMove(lobby) {
         return -1;
     };
 
-    // Hilfsfunktion: Bewertet eine Reihe von 4 Feldern
     const scoreWindow = (window, symbol) => {
         let score = 0;
         const countFriendly = window.filter(s => s === symbol).length;
@@ -287,14 +295,12 @@ function executeBotMove(lobby) {
         else if (countFriendly === 3 && countEmpty === 1) score += 100;
         else if (countFriendly === 2 && countEmpty === 2) score += 10;
 
-        // GEGNER BLOCKEN (Wichtig für 1v1 Fallen)
-        if (countOpponent === 3 && countEmpty === 1) score -= 500; // Blocke Dreier-Reihen sofort
-        else if (countOpponent === 2 && countEmpty === 2) score -= 50; // Störe Zweier-Reihen frühzeitig
+        if (countOpponent === 3 && countEmpty === 1) score -= 500;
+        else if (countOpponent === 2 && countEmpty === 2) score -= 50;
 
         return score;
     };
 
-    // Bewertet das gesamte Board für ein bestimmtes Symbol
     const evaluateBoard = (board, symbol) => {
         let totalScore = 0;
 
@@ -305,7 +311,7 @@ function executeBotMove(lobby) {
                 totalScore += scoreWindow(window, symbol);
             }
         }
-        // Vertikal
+        // Vertical
         for (let c = 0; c < numCols; c++) {
             for (let r = 0; r <= numRows - 4; r++) {
                 const window = [board[r][c], board[r+1][c], board[r+2][c], board[r+3][c]];
@@ -350,7 +356,7 @@ function executeBotMove(lobby) {
                 for (let i = 0; i < lobby.maxPlayers; i++) {
                     if (i === activePlayerIndex) continue;
                     if (simulateAndCheckWin(lobby, r - 1, c, playerSymbols[i])) {
-                        score -= 50000; // Massiver Abzug
+                        score -= 50000;
                     }
                 }
             }
@@ -434,7 +440,7 @@ function startTimer(lobby) {
             lobby.timeLeft--;
 
             if (lobby.timeLeft <= 0) {
-                // Auto-Move Logik
+                // Auto-Move Logic
                 let validCols = [];
                 for (let c = 0; c < lobby.board[0].length; c++) {
                     if (lobby.board[0][c] === "") validCols.push(c);
@@ -958,7 +964,19 @@ io.on("connection", socket => {
         if (maxPlayers === 4) { rows = 8; cols = 10; }
 
         const sId = player.sessionId;
-        const lobbyColors = getUniqueColors(maxPlayers);
+        let lobbyColors = [];
+        let pool = [...colorPool];
+
+        if (player.preferredColor && pool.includes(player.preferredColor)) {
+            lobbyColors.push(player.preferredColor);
+            pool = pool.filter(c => c !== player.preferredColor);
+        }
+        // Fill other slot colors
+        while (lobbyColors.length < maxPlayers) {
+            const randomIndex = Math.floor(Math.random() * pool.length);
+            lobbyColors.push(pool.splice(randomIndex, 1)[0]);
+        }
+
         const roomID = "room-" + crypto.randomUUID();
 
         const slots = new Array(maxPlayers).fill(null);
@@ -1030,6 +1048,8 @@ io.on("connection", socket => {
             lobby.players[existingPlayerIndex].id = socket.id;
             lobby.players[existingPlayerIndex].name = player.name;
 
+            attemptColorSwap(lobby, existingPlayerIndex, player.preferredColor);
+
             socket.join(roomID);
             socket.emit("show-lobby", roomID, false, lobby.maxPlayers);
 
@@ -1057,6 +1077,8 @@ io.on("connection", socket => {
                     sessionId: sId
                 };
             }
+
+            attemptColorSwap(lobby, freeSlotIndex, player.preferredColor);
 
             socket.join(roomID);
             socket.emit("show-lobby", roomID, false, lobby.maxPlayers);
@@ -1114,6 +1136,14 @@ io.on("connection", socket => {
             io.emit("update-lobby-list", lobbies);
         } else if (socket.id !== lobby.hostID) {
             socket.emit("lobby-error", "Only the host can restart the game!");
+        }
+    });
+
+    socket.on("update-preferred-color", (color) => {
+        const player = players.find(p => p.id === socket.id);
+
+        if (player) {
+            player.preferredColor = color;
         }
     });
 });

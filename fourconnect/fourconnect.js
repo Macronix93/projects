@@ -49,6 +49,11 @@ const authSwitchBtn = document.getElementById("auth-switch-btn");
 const authUsernameInput = document.getElementById("auth-username");
 const authPasswordInput = document.getElementById("auth-password");
 const closeAuth = document.getElementById("close-auth");
+const colorPrefBtn = document.getElementById("color-pref-btn");
+const colorDialog = document.getElementById("color-dialog");
+const colorGrid = document.getElementById("color-grid");
+const closeColorDialog = document.getElementById("close-color-dialog");
+const resetColorBtn = document.getElementById("reset-color");
 
 let titleInterval = null;
 let originalTitle = document.title;
@@ -81,6 +86,72 @@ leaveLobbyButton.parentNode.insertBefore(restartButton, leaveLobbyButton);
 let selectedSize = 2;
 let selectedBots = 0;
 
+/// Color section
+
+// Available colors (from server)
+const availableColors = ["#cc3739", "#facc15", "#ffffff", "#00b2ff", "#adff2f", "#5c5c5c"];
+let preferredColor = localStorage.getItem("preferredColor") || null;
+
+if (preferredColor) {
+    colorPrefBtn.style.background = `radial-gradient(circle at 30% 30%, ${preferredColor}, #000)`;
+    colorPrefBtn.style.boxShadow = "inset 0 -4px 6px rgba(0,0,0,0.5), 0 4px 8px rgba(0,0,0,0.4)";
+} else {
+    colorPrefBtn.style.background = "#334155";
+    colorPrefBtn.style.boxShadow = "inset 0 2px 4px rgba(0,0,0,0.3)";
+}
+
+availableColors.forEach(color => {
+    const div = document.createElement("div");
+    div.className = "color-option";
+    div.style.background = `radial-gradient(circle at 30% 30%, ${color}, #000)`;
+
+    if (color === preferredColor) div.classList.add("selected");
+
+    div.onclick = () => {
+        preferredColor = color;
+        localStorage.setItem("preferredColor", color);
+
+        colorPrefBtn.style.background = `radial-gradient(circle at 30% 30%, ${color}, #000)`;
+        colorPrefBtn.style.boxShadow = "inset 0 -4px 6px rgba(0,0,0,0.5), 0 4px 8px rgba(0,0,0,0.4)";
+
+        socket.emit("update-preferred-color", color);
+
+        document.querySelectorAll(".color-option").forEach(el => el.classList.remove("selected"));
+        div.classList.add("selected");
+
+        closeColorModal();
+    };
+    colorGrid.appendChild(div);
+});
+
+colorPrefBtn.onclick = () => {
+    colorDialog.classList.add("active");
+    document.getElementById("modal-overlay").classList.add("active");
+};
+
+const closeColorModal = () => {
+    colorDialog.classList.remove("active");
+    document.getElementById("modal-overlay").classList.remove("active");
+};
+
+closeColorDialog.onclick = closeColorModal;
+
+resetColorBtn.onclick = () => {
+    preferredColor = null;
+    localStorage.removeItem("preferredColor");
+
+    colorPrefBtn.style.background = "#334155";
+    colorPrefBtn.style.boxShadow = "inset 0 2px 4px rgba(0,0,0,0.3)";
+
+    socket.emit("update-preferred-color", null);
+
+    document.querySelectorAll(".color-option").forEach(el => el.classList.remove("selected"));
+
+    closeColorModal();
+};
+
+// End Color section
+
 function setupSegmentedControl(containerId, callback) {
     const container = document.getElementById(containerId);
     const buttons = container.querySelectorAll('.segment-btn');
@@ -112,8 +183,8 @@ function validateBotSelection() {
     });
 }
 
-setupSegmentedControl('size-selector', (val) => selectedSize = parseInt(val));
-setupSegmentedControl('bot-selector', (val) => selectedBots = parseInt(val));
+setupSegmentedControl("size-selector", (val) => selectedSize = parseInt(val));
+setupSegmentedControl("bot-selector", (val) => selectedBots = parseInt(val));
 
 socket.on("logout-confirmed", (newGuestName) => {
     isLoggedIn = false;
@@ -131,6 +202,10 @@ socket.on("logout-confirmed", (newGuestName) => {
 socket.on("connect", () => {
     const savedToken = localStorage.getItem("connect4_auth_token");
     const savedName = localStorage.getItem("savedPlayerName");
+
+    if (preferredColor) {
+        socket.emit("update-preferred-color", preferredColor);
+    }
 
     if (savedToken) {
         socket.emit("auto-login", savedToken, sessionId);
