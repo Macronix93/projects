@@ -59,32 +59,15 @@ const User = mongoose.model("User", userSchema);
 
 // Server code
 const reservedNames = [
-    "admin",
-    "system",
-    "moderator",
-    "server",
-    "mod",
-    "owner",
-    "root",
-    "staff",
-    "support",
-    "dev",
-    "developer",
-    "ai",
-    "cpu",
-    "guest",
-    "anonymous",
-    "bot"
+    "admin", "administrator", "adminis", "system", "moderator", "server",
+    "mod", "owner", "root", "staff", "support", "dev", "developer",
+    "ai", "cpu", "guest", "anonymous", "bot", "official", "sysadmin"
 ];
 const colorPool = [
     "#cc3739", // Rot
     "#facc15", // Sonnengelb
-    // "#16a34a", // Waldgrün
-    // "#9333ea", // Kräftiges Violett
-    // "#ff7b00", // Sattes Orange
     "#ffffff", // Reinweiß
     "#00b2ff", // Aqua
-    // "#ff00ff", // Magenta / Fuchsia
     "#adff2f",  // Lime / Giftgrün
 	"#5c5c5c" // Grau
 ];
@@ -126,13 +109,11 @@ function attemptColorSwap(lobby, playerIndex, preferredColor) {
     if (colorPos !== -1 && colorPos !== playerIndex) {
         const otherOwner = lobby.players[colorPos];
 
+        // Only swap the color, if the other slot is empty or is a bot
         if (!otherOwner || otherOwner.isBot) {
-            const temp = lobby.playerColors[playerIndex];
-
+            const oldColor = lobby.playerColors[playerIndex];
             lobby.playerColors[playerIndex] = lobby.playerColors[colorPos];
-            lobby.playerColors[colorPos] = temp;
-
-            console.log(`Color swap in Lobby ${lobby.roomID} for ${lobby.players[playerIndex].name}`);
+            lobby.playerColors[colorPos] = oldColor;
         }
     }
 }
@@ -967,11 +948,19 @@ io.on("connection", socket => {
         let lobbyColors = [];
         let pool = [...colorPool];
 
+        // Host color determination
+        let hostColor;
+
         if (player.preferredColor && pool.includes(player.preferredColor)) {
-            lobbyColors.push(player.preferredColor);
-            pool = pool.filter(c => c !== player.preferredColor);
+            hostColor = player.preferredColor;
+        } else {
+            const randomIndex = Math.floor(Math.random() * pool.length);
+            hostColor = pool[randomIndex];
         }
-        // Fill other slot colors
+        lobbyColors.push(hostColor);
+        pool = pool.filter(c => c !== hostColor);
+
+        // Fill other slots with random colors from the pool
         while (lobbyColors.length < maxPlayers) {
             const randomIndex = Math.floor(Math.random() * pool.length);
             lobbyColors.push(pool.splice(randomIndex, 1)[0]);
@@ -1213,6 +1202,13 @@ async function cleanInactiveAccounts() {
         });
 
         console.log(`Deleted ${result.deletedCount} inactive accounts.`);
+
+        // Chat History Cleanup
+        chatHistory = [];
+        console.log("Chat history cleared during weekly cleanup.");
+
+        // Inform clients, that the chat has been cleared
+        io.emit("load-chat-history", []);
     } catch (err) {
         console.error("Cleanup error:", err);
     }
